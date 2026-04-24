@@ -896,7 +896,7 @@ function renderCodex() {
       + '<span class="qnum" style="border-color:' + q.cssColor + '">'
       + (ok ? '✦' : (q.id + 1)) + '</span>'
       + '<span style="flex:1">' + q.name
-      + ' <span style="font-size:.55rem; color:var(--gold-dark)"> — ' + q.hint + '</span></span>'
+      + '</span>'
       + '<span class="qcheck">' + (ok ? '✦' : '') + '</span>'
       + '</button>';
   }).join('');
@@ -934,7 +934,7 @@ function openNav(qid) {
   wasInZone = false;
 
   document.getElementById('navName').textContent = activeQuest.name;
-  document.getElementById('navHint').textContent = '✦ ' + activeQuest.hint + ' ✦';
+  document.getElementById('navHint').textContent = '';
   document.getElementById('distValue').textContent = '– m';
   document.getElementById('distValue').classList.remove('close');
   document.getElementById('proxFill').style.width = '0%';
