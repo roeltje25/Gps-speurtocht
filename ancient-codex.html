@@ -798,7 +798,6 @@ function applyTestOffsets(baseLat, baseLng) {
   console.log('🧪 Test locations set around', baseLat.toFixed(6), baseLng.toFixed(6));
   QUESTS.forEach((q, i) => console.log(`  ${q.name}: ${TEST_OFFSETS[i].distance}m @ ${TEST_OFFSETS[i].bearing}°`));
 }
-];
 
 // ════════════════════════════════════════════
 //  STATE
@@ -877,6 +876,11 @@ function renderCodex() {
       hs.classList.add('done');
       hs.onclick = null;
     } else {
+      const unlitEl = document.createElement('div');
+      unlitEl.className = 'lit-crystal';
+      unlitEl.style.cssText += spriteBg('crystal_' + q.color + '_unlit');
+      unlitEl.style.opacity = '0.35';
+      hs.appendChild(unlitEl);
       hs.classList.remove('done');
       hs.onclick = () => openNav(q.id);
     }
