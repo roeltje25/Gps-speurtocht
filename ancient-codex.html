@@ -75,6 +75,34 @@ html, body {
   color: var(--gold-dark); text-transform: uppercase; margin-top: 2px;
 }
 
+.codex-gps-status {
+  margin-top: 6px;
+  padding: 4px 10px;
+  display: inline-block;
+  border: 1px solid var(--gold-dark);
+  border-radius: 3px;
+  font-size: .55rem;
+  letter-spacing: 2px;
+  color: var(--gold-dark);
+  background: rgba(0,0,0,.4);
+  min-height: 20px;
+}
+.codex-gps-status.ready {
+  color: #60ff80;
+  border-color: #2a5020;
+  background: rgba(0,60,20,.3);
+}
+.codex-gps-status.error {
+  color: #ff7060;
+  border-color: #5a2010;
+  background: rgba(60,10,0,.3);
+}
+.codex-gps-status.test {
+  color: #ffd060;
+  border-color: #5a4010;
+  background: rgba(60,40,0,.3);
+}
+
 .pip-row { display:flex; gap:10px; justify-content:center; flex-shrink:0; }
 .pip {
   width: 10px; height: 10px; border-radius: 50%;
@@ -503,6 +531,7 @@ html, body {
     <div class="codex-header">
       <h1>✦ De Oude Codex ✦</h1>
       <div class="codex-sub">Boek der Eeuwige Kristallen</div>
+      <div id="codexGpsStatus" class="codex-gps-status"></div>
     </div>
 
     <div class="pip-row" id="pipRow">
@@ -1187,10 +1216,58 @@ function toggleHints() {
   document.getElementById('hintsPanel').classList.toggle('show');
 }
 
+// ════════════════════════════════════════════
+//  GPS STATUS BADGE on codex screen
+// ════════════════════════════════════════════
+function updateCodexGpsBadge(state, text) {
+  const el = document.getElementById('codexGpsStatus');
+  if (!el) return;
+  el.className = 'codex-gps-status ' + (state || '');
+  el.textContent = text;
+}
+
+// Prewarm GPS on page load so test locations are set before user clicks a crystal
+function prewarmGPS() {
+  if (!navigator.geolocation) {
+    updateCodexGpsBadge('error', '⚠ geen GPS beschikbaar');
+    return;
+  }
+  if (TEST_MODE) {
+    updateCodexGpsBadge('test', '🧪 TEST MODE — GPS zoeken…');
+  } else {
+    updateCodexGpsBadge('', 'GPS zoeken…');
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      userLat = pos.coords.latitude;
+      userLng = pos.coords.longitude;
+      if (TEST_MODE && !testModeReady) {
+        applyTestOffsets(userLat, userLng);
+        renderHintsPanel();
+        updateCodexGpsBadge('ready',
+          '🧪 Test-locaties klaar (±' + Math.round(pos.coords.accuracy) + 'm)');
+      } else {
+        updateCodexGpsBadge('ready',
+          'GPS actief · ±' + Math.round(pos.coords.accuracy) + 'm');
+      }
+    },
+    (err) => {
+      let msg = '⚠ GPS fout';
+      if (err.code === 1) msg = '⚠ GPS geweigerd — sta locatie toe';
+      else if (err.code === 2) msg = '⚠ GPS niet beschikbaar';
+      else if (err.code === 3) msg = '⚠ GPS timeout';
+      updateCodexGpsBadge('error', msg);
+    },
+    { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+  );
+}
+
 // ─── INIT ───────────────────────────────────
 applyStaticSprites();
 bindButtonPress();
 renderCodex();
+prewarmGPS();
 </script>
 </body>
 </html>
