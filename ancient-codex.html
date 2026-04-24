@@ -290,18 +290,57 @@ html, body {
 
 .compass-needle-wrap {
   position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  transition: transform .4s cubic-bezier(.34, 1.4, .64, 1);
+  transform-origin: center center;
+  transition: transform .35s cubic-bezier(.25, .8, .5, 1);
   pointer-events: none;
 }
 
-.compass-needle {
-  width: 11.5%;
-  height: 55%;
-  background-repeat: no-repeat;
-  background-size: contain;
-  background-position: center;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,.5));
+/* North tip — gold triangle, bottom edge pinned at compass center */
+.compass-needle-n {
+  position: absolute;
+  left: 50%; bottom: 50%;
+  transform: translateX(-50%);
+  width: 9%;
+  height: 34%;
+  background: linear-gradient(to top, #9a7020 0%, #e8c040 55%, #fff8d0 100%);
+  clip-path: polygon(50% 0%, 8% 100%, 92% 100%);
+  filter: drop-shadow(0 0 5px rgba(255,210,60,.65));
+}
+
+/* South tip — dark triangle, top edge pinned at compass center */
+.compass-needle-s {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translateX(-50%);
+  width: 9%;
+  height: 20%;
+  background: linear-gradient(to bottom, #6a4a10, #2a1c06);
+  clip-path: polygon(50% 100%, 8% 0%, 92% 0%);
+}
+
+/* Pivot dot at exact center */
+.compass-pivot {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: 6%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff8d0, #c8a030);
+  border: 1px solid #7a5c2a;
+  box-shadow: 0 0 8px rgba(255,200,50,.6), inset 0 1px 2px rgba(255,255,200,.4);
+}
+
+/* Glowing dot on outer ring — rotates with the needle, marks the target direction */
+.compass-ring-dot {
+  position: absolute;
+  left: 50%; top: 4%;
+  transform: translateX(-50%);
+  width: 5%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffffff, #ffe060);
+  box-shadow: 0 0 7px 2px rgba(255,220,60,.95), 0 0 16px 4px rgba(255,180,30,.5);
 }
 
 .dist-section {
@@ -574,7 +613,10 @@ html, body {
     <div class="compass-container">
       <div class="compass-ring" id="compassRing"></div>
       <div class="compass-needle-wrap" id="compassNeedle">
-        <div class="compass-needle" id="compassNeedleImg"></div>
+        <div class="compass-needle-n"></div>
+        <div class="compass-needle-s"></div>
+        <div class="compass-pivot"></div>
+        <div class="compass-ring-dot"></div>
       </div>
     </div>
 
@@ -806,6 +848,7 @@ let found = JSON.parse(localStorage.getItem('codex_found') || '[]');
 let activeQuest = null;
 let watchId = null;
 let userLat = null, userLng = null, userHeading = null;
+let headingSmoothed = null;
 let wasInZone = false;
 let audioCtx;
 const audio = () => {
@@ -818,7 +861,6 @@ const audio = () => {
 // ════════════════════════════════════════════
 function applyStaticSprites() {
   document.getElementById('compassRing').style.cssText += spriteBg('compass_ring');
-  document.getElementById('compassNeedleImg').style.cssText += spriteBg('compass_needle');
   document.getElementById('backBtnSprite').style.cssText += spriteBg('button_idle');
   document.getElementById('activateBtnSprite').style.cssText += spriteBg('button_idle');
   document.getElementById('victoryCodex').style.cssText += spriteBg('codex_full');
@@ -1069,10 +1111,29 @@ function startOrientation() {
     window.addEventListener('deviceorientation', onOrient);
   }
 }
-function stopOrientation() { window.removeEventListener('deviceorientation', onOrient); }
+function stopOrientation() {
+  window.removeEventListener('deviceorientation', onOrient);
+  headingSmoothed = null;
+}
 function onOrient(e) {
-  if (e.webkitCompassHeading !== undefined) userHeading = e.webkitCompassHeading;
-  else if (e.alpha !== null) userHeading = (360 - e.alpha) % 360;
+  let raw;
+  if (e.webkitCompassHeading != null) {
+    raw = e.webkitCompassHeading;           // iOS — already magnetic north
+  } else if (e.alpha != null) {
+    raw = (360 - e.alpha) % 360;            // Android — convert CCW to CW
+  } else {
+    return;
+  }
+  // Circular low-pass filter: smooths jitter while respecting 0/360 wraparound
+  if (headingSmoothed === null) {
+    headingSmoothed = raw;
+  } else {
+    let diff = raw - headingSmoothed;
+    if (diff > 180) diff -= 360;
+    if (diff < -180) diff += 360;
+    headingSmoothed = (headingSmoothed + 0.2 * diff + 360) % 360;
+  }
+  userHeading = headingSmoothed;
   updateNav();
 }
 
